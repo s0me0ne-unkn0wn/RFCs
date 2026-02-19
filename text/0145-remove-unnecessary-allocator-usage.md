@@ -20,7 +20,6 @@ This RFC is mainly based on [RFC-4](https://github.com/polkadot-fellows/RFCs/pul
 
 * The original RFC required checking if an output buffer address provided to a host function is inside the VM address space range, and to stop the runtime execution if that's not the case. That requirement has been removed in this version of the RFC, as in the general case, the host doesn't have exhaustive information about the VM's memory organization. Thus, attempting to write to an out-of-bounds region will result in a "normal" runtime panic.
 * Function signatures introduced by [PPP#7](https://github.com/w3f/PPPs/pull/7) have been used in this RFC, as the PPP has already been [properly implemented](https://github.com/paritytech/substrate/pull/11490) and [documented](https://github.com/w3f/polkadot-spec/pull/592/files). However, it has never been officially adopted, nor have its functions been in use.
-* Return values were harmonized to `i64` everywhere where they represent either a positive outcome as a positive integer or a negative outcome as a negative error code.
 * `ext_offchain_network_peer_id_version_1` now returns a result code instead of silently failing if the network status is unavailable.
 * Added new versions of `ext_misc_runtime_version` and `ext_offchain_random_seed`.
 * Addressed discussions from the original RFC-4 discussion thread.
@@ -149,7 +148,7 @@ The function was returning a SCALE-encoded `Option`-wrapped 32-bit integer repre
 ##### Arguments
 
 * `key` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the storage key being read;
-* `value_out` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to a buffer where the value read should be stored. Let $\mathcal{out\_len}$ denote the length component of this pointer-size (i.e., the size of the output buffer), and let $\mathcal{value\_len}$ denote the actual length of the value in storage starting from `value_offset`. The implementation must write $\mathrm{min}(\mathcal{value\_len}, \mathcal{out\_len})$ bytes of the value to `value_out` only if $(\mathcal{out\_len} \geq \mathcal{value\_len}) \lor (\mathcal{allow\_partial} = \mathrm{true})$. If $(\mathcal{out\_len} < \mathcal{value\_len}) \land (\mathcal{allow\_partial} = \mathrm{false})$, the implementation must not write any bytes to `value_out` and must leave the buffer unchanged;
+* `value_out` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to a buffer where the value read should be stored. Let $\mathrm{out\_len}$ denote the length component of this pointer-size (i.e., the size of the output buffer), and let $\mathrm{value\_len}$ denote the actual length of the value in storage starting from `value_offset`. The implementation must write $\mathrm{min}(\mathrm{value\_len}, \mathrm{out\_len})$ bytes of the value to `value_out` only if $(\mathrm{out\_len} \geq \mathrm{value\_len}) \lor (\mathrm{allow\\_partial} = \mathrm{true})$. If $(\mathrm{out\_len} < \mathrm{value\_len}) \land (\mathrm{allow\\_partial} = \mathrm{false})$, the implementation must not write any bytes to `value_out` and must leave the buffer unchanged;
 * `value_offset` is an unsigned 32-bit offset from which the value reading should start;
 * `allow_partial` is a boolean value, where `0` represents `false` and any other value represents `true`, denoting if the output buffer must be partially written even if its length is not enough to accommodate the whole value.
 
@@ -287,7 +286,7 @@ The function was returning a SCALE-encoded `Option`-wrapped 32-bit integer repre
 
 * `storage_key` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the child storage key ([Definition 219](https://polkadotspec.dev/chap-host-api#defn-child-storage-type));
 * `key` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the storage key being read;
-* `value_out` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to a buffer where the value read should be stored. Let $\mathcal{out\_len}$ denote the length component of this pointer-size (i.e., the size of the output buffer), and let $\mathcal{value\_len}$ denote the actual length of the value in storage starting from `value_offset`. The implementation must write $\mathrm{min}(\mathcal{value\_len}, \mathcal{out\_len})$ bytes of the value to `value_out` only if $(\mathcal{out\_len} \geq \mathcal{value\_len}) \lor (\mathcal{allow\_partial} = \mathrm{true})$. If $(\mathcal{out\_len} < \mathcal{value\_len}) \land (\mathcal{allow\_partial} = \mathrm{false})$, the implementation must not write any bytes to `value_out` and must leave the buffer unchanged;
+* `value_out` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to a buffer where the value read should be stored. Let $\mathrm{out\_len}$ denote the length component of this pointer-size (i.e., the size of the output buffer), and let $\mathrm{value\_len}$ denote the actual length of the value in storage starting from `value_offset`. The implementation must write $\mathrm{min}(\mathrm{value\_len}, \mathrm{out\_len})$ bytes of the value to `value_out` only if $(\mathrm{out\_len} \geq \mathrm{value\_len}) \lor (\mathrm{allow\\_partial} = \mathrm{true})$. If $(\mathrm{out\_len} < \mathrm{value\_len}) \land (\mathrm{allow\\_partial} = \mathrm{false})$, the implementation must not write any bytes to `value_out` and must leave the buffer unchanged;
 * `value_offset` is an unsigned 32-bit offset from which the value reading should start;
 * `allow_partial` is a boolean value, where `0` represents `false` and any other value represents `true`, denoting if the output buffer must be partially written even if its length is not enough to accommodate the whole value.
 
@@ -500,11 +499,11 @@ A new function is introduced to make it possible to fetch a cursor produced by `
 
 ```wat
 (func $ext_misc_last_cursor_version_1
-    (param $out i32))
+    (param $out i64))
 ```
 ##### Arguments
 
-* `out` is a pointer ([Definition 215](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer)) to the buffer where the last cached cursor will be stored, if one exists. The caller must provide a buffer large enough to accommodate the entire cursor; the exact length of the cursor is known to the caller from the result of the preceding call to one of the storage prefix clearing functions. If the buffer provided is not large enough, execution is aborted.
+* `out` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the buffer where the last cached cursor will be stored, if one exists. The caller must provide a buffer large enough to accommodate the entire cursor; the exact length of the cursor is known to the caller from the result of the preceding call to one of the storage prefix clearing functions. If the buffer provided is not large enough, execution is aborted.
 
 After this function is called, the cursor cache is cleared, and the same cursor cannot be retrieved again using this function.
 
@@ -572,7 +571,7 @@ The functions used to return a host-allocated buffer containing the key of the c
 
 ```wat
 (func $ext_crypto_{ed25519|sr25519|ecdsa}_generate_version_2
-    (param $id i32) (param $seed i32) (param $out i32))
+    (param $id i32) (param $seed i64) (param $out i32))
 ```
 
 ##### Arguments
@@ -604,7 +603,7 @@ The functions used to return a host-allocated SCALE-encoded value representing t
 
 ```wat
 (func $ext_crypto_{ed25519|sr25519|ecdsa}_sign{_prehashed|}_version_2
-    (param $id i32) (param $pub_key i32) (param $msg i64) (param $out i64) (result i32))
+    (param $id i32) (param $pub_key i32) (param $msg i64) (param $out i32) (result i32))
 ```
 
 ##### Arguments
@@ -623,7 +622,7 @@ The function returns `0` on success. On error, `-1` is returned, and the output 
 ##### Existing prototypes
 
 ```wat
-(func $ext_crypto_secp256k1_ecdsa_recover\[_compressed]_version_2
+(func $ext_crypto_secp256k1_ecdsa_recover[_compressed]_version_2
     (param $sig i32) (param $msg i32) (result i64))
 ```
 
@@ -638,7 +637,7 @@ The functions used to return a host-allocated SCALE-encoded value representing t
 ##### New prototypes
 
 ```wat
-(func $ext_crypto_secp256k1_ecdsa_recover\[_compressed]_version_3
+(func $ext_crypto_secp256k1_ecdsa_recover[_compressed]_version_3
     (param $sig i32) (param $msg i32) (param $out i32) (result i32))
 ```
 
@@ -832,9 +831,9 @@ The function used to return a SCALE-encoded `Result` value in a host-allocated b
 
 ##### Arguments
 
-`method` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the HTTP method. Possible values are "GET" and "POST";
-`uri` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the URI;
-`meta` is a future-reserved field containing a SCALE-encoded array with additional parameters. Currently, passing anything but a readable pointer to an empty array shall result in an execution abort. This is to ensure backwards compatibility in case future versions start interpreting the contents of the array. 
+* `method` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the HTTP method. Possible values are "GET" and "POST";
+* `uri` is a pointer-size ([Definition 216](https://polkadotspec.dev/chap-host-api#defn-runtime-pointer-size)) to the URI;
+* `meta` is a future-reserved field containing a SCALE-encoded array with additional parameters. Currently, passing anything but a readable pointer to an empty array shall result in an execution abort. This is to ensure backwards compatibility in case future versions start interpreting the contents of the array. 
 
 ##### Result
 
